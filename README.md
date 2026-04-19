@@ -1,211 +1,364 @@
 # CampusIQ – Early Academic Risk Detection & Student Intervention Platform
 
+**Team Tarkshastra** | TS-12 | Dev IT Limited
+
 ---
 
-## 1. Problem Statement & Explanation
+## 1. Problem Statement
 
-### 1.1 Problem Statement
-Universities and colleges often identify academically at‑risk students **too late**. Critical indicators such as:
-- Declining attendance
-- Low internal marks
-- Missed assignments
-- Irregular LMS activity
-are **scattered** across multiple legacy systems and are manually reviewed. Faculty mentors rely on delayed reports or subjective judgment, leading to late interventions (counselling, remedial classes). By the time risk is flagged, student performance and morale have already suffered.
+Universities and colleges often identify academically at‑risk students **too late**. Critical indicators such as declining attendance, low internal marks, missed assignments, and irregular LMS activity are **scattered** across multiple systems and manually reviewed. Faculty mentors rely on delayed reports or subjective judgment, resulting in late interventions.
 
-### 1.2 Why This Is Critical
-- **Student outcomes** degrade when interventions are delayed.  
-- **Faculty workload** increases due to manual data aggregation.  
-- **Institutional reputation** suffers due to higher dropout and lower graduation rates.
-
-A **unified, real‑time monitoring system** is needed to continuously analyse academic signals, detect early risk trends, and provide **explainable** reasons for each risk score, empowering proactive support.
+**CampusIQ** solves this by providing a unified, real‑time monitoring platform that continuously analyses academic signals, detects early risk trends, and provides **explainable AI-driven insights** for proactive student support.
 
 ---
 
 ## 2. Solution Overview
 
-**CampusIQ** is a web‑based, full‑stack platform that:
-1. **Aggregates** attendance, marks, assignment completion, and LMS activity into a single data lake.
-2. **Computes** a multi‑factor risk score for every student using a weighted algorithm.
-3. **Explains** the top‑contributing factors (e.g., low attendance, missing assignments).
-4. **Shows** an actionable dashboard for faculty mentors to filter by class, subject, and risk level.
-5. **Allows** mentors to log interventions (counselling, remedial class, assignment extension) with remarks.
-6. **Tracks** pre‑ and post‑intervention performance to measure effectiveness.
-7. **Sends** automated alerts (email + in‑app) to mentors when a student crosses a high‑risk threshold.
-8. **Exports** risk summaries as PDF/CSV for reporting.
+CampusIQ is a full‑stack web platform with **four role‑based portals**:
+
+| Portal | Key Capabilities |
+|--------|-----------------|
+| **Student** | Dashboard, Risk Analysis with heatmap, Per-subject Attendance with Calendar, Learning Hub, Assignments, Schedule, Grades with marks breakdown, Hall Ticket |
+| **Faculty Mentor** | Academic Score Distribution, Student Profiles, Intervention Logging, Remedial Management |
+| **Subject Teacher** | Attendance Marking (synced with timetable), Marks Entry (Mid/Internal/IA/EndSem), LMS Content Upload, Assignment Management, Grades |
+| **Admin** | User Management, Timetable Configuration, Classroom Management, Hall Ticket Rules, Events |
 
 ---
 
-## 3. Approach & Methodology
-
-| Phase | Activities |
-|-------|------------|
-| **Requirement Analysis** | Gather stakeholder needs (students, mentors, teachers, coordinators). |
-| **Design** | Architecture design (micro‑service style), UI/UX wireframes, risk‑scoring model definition. |
-| **Implementation** | Backend (Node.js/Express, PostgreSQL, Socket.io). Frontend (React‑Vite, Tailwind, Recharts). |
-| **Testing** | Unit tests for risk engine, integration tests for API endpoints, UI flow testing with Cypress. |
-| **Deployment** | Dockerised containers, CI/CD pipeline using GitHub Actions. |
-| **Feedback Loop** | Pilot with a department, collect metrics, refine scoring weights. |
-
----
-
-## 4. Architecture Overview
-
-```mermaid
-flowchart TD
-    subgraph Frontend[React Frontend]
-        A[Student Portal] --> B[Auth]
-        C[Faculty Mentor Dashboard] --> B
-        D[Subject Teacher Portal] --> B
-        E[Admin Portal] --> B
-        B --> F[Axios API Calls]
-    end
-    subgraph Backend[Node.js Backend]
-        G[Auth Service] --> H[JWT Cookie]
-        I[Risk Engine] --> J[PostgreSQL]
-        K[Intervention Service] --> J
-        L[Alert Service] --> M[Email / In‑app]
-        N[Socket.io Hub] --> O[Real‑time UI]
-        F --> P[REST API Routes]
-        P --> J
-    end
-    Frontend --> Backend
-    style Frontend fill:#f0f9ff,stroke:#2b6cb0
-    style Backend fill:#fefcbf,stroke:#d69e2e
-```
-
-- **Frontend**: React + Vite, Tailwind CSS, Recharts for analytics, Socket.io client for real‑time notifications.
-- **Backend**: Express.js, JWT (httpOnly cookies), PostgreSQL, risk‑engine service, Socket.io server, Nodemailer for alerts, node‑cron for scheduled risk recomputation.
-- **Data Layer**: 15‑table relational schema (users, students, attendance, marks, assignments, interventions, alerts, etc.).
-
----
-
-## 5. Tech Stack
+## 3. Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| **Frontend** | React (Vite), Tailwind CSS v4, Recharts, Axios, React‑Router‑DOM v6, Socket.io client |
-| **Backend** | Node.js, Express.js, JWT, bcrypt, Multer, Socket.io, node‑cron, Nodemailer |
-| **Database** | PostgreSQL (SQL) |
-| **DevOps** | Docker, GitHub Actions CI/CD, npm scripts |
-| **Testing** | Jest (backend), Cypress (frontend) |
-| **Design** | Google Fonts – Inter, modern dark‑mode palette, glass‑morphism cards, micro‑animations |
+| **Frontend** | React 19 (Vite 8), Tailwind CSS v4, Recharts, Axios, React‑Router‑DOM v6, Socket.io Client, Lucide Icons |
+| **Backend** | Node.js, Express.js, JWT (httpOnly cookies), bcrypt.js, Multer, Socket.io, node-cron, Nodemailer |
+| **Database** | PostgreSQL 13+ |
+| **AI/ML** | Custom multi-factor risk engine with SHAP-derived feature weights, Grok LLM integration (optional) |
+| **Design** | Google Fonts (DM Sans), modern palette (#1B263B, #415A77, #FFC300), micro-animations |
+
+---
+
+## 4. Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    React Frontend (Vite)                     │
+│  Student │ Mentor │ Teacher │ Admin  ← Role-based routing   │
+│  Axios (/api proxy) │ Socket.io (/socket.io proxy)          │
+└────────────────────────┬────────────────────────────────────┘
+                         │  Vite Dev Proxy (port 5173 → 5000)
+┌────────────────────────▼────────────────────────────────────┐
+│                  Express.js Backend (port 5000)              │
+│  Auth (JWT+Cookie) │ Risk Engine │ LLM Service │ Scheduler  │
+│  14 API route modules │ Multer uploads │ Socket.io server   │
+│  Static file serving (/uploads)                              │
+└────────────────────────┬────────────────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────────────┐
+│                    PostgreSQL Database                        │
+│  16 tables │ Indexes │ UNIQUE constraints │ CHECK constraints│
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Database Schema (16 Tables)
+
+| # | Table | Purpose |
+|---|-------|---------|
+| 1 | `users` | Authentication — name, email, password_hash, role (student/mentor/teacher/admin), department |
+| 2 | `students` | Student profile — roll_no, semester, section, mentor_id |
+| 3 | `faculty` | Faculty profile — department, cabin_number, subjects |
+| 4 | `subjects` | Course catalog — name, code, teacher_id, semester |
+| 5 | `attendance` | Daily attendance — student_id, subject_id, date, status (present/absent). UNIQUE per student+subject+date |
+| 6 | `marks` | Internal assessment — mid_marks(/25), internal_marks(/25), ia_marks(/25), endsem_marks(/100). UNIQUE per student+subject |
+| 7 | `assignments` | Assignment metadata — title, description, deadline, allow_late, created_by |
+| 8 | `submissions` | Student submissions — file_url, status (submitted/pending/late), grade, grade_remarks |
+| 9 | `lms_content` | Learning materials — title, file_url, type (pdf/ppt/video/link/docx), uploaded_by |
+| 10 | `timetable` | Weekly schedule — subject_id, section, day, start_time, end_time, room_number |
+| 11 | `interventions` | Mentor actions — type (counseling/remedial/etc), remarks, llm_suggestion |
+| 12 | `events` | Campus events — title, start_date, end_date, description |
+| 13 | `hall_ticket_rules` | Eligibility rules — min_attendance_percent, enabled |
+| 14 | `notifications` | In-app alerts — user_id, message, is_read |
+| 15 | `risk_scores` | Historical risk snapshots — score, level, reasons[], llm_insights, computed_at |
+| 16 | `classrooms` | Room management — number, capacity, type (lecture/lab/seminar), building |
 
 ---
 
 ## 6. Core Features
 
-1. **Academic Risk Score Generation** – Weighted scoring (Attendance 40 %, Marks 35 %, Assignment Completion 25 %).
-2. **Explainable Insights** – Top‑3 contributing factors displayed with colour‑coded badges.
-3. **Faculty Dashboard** – Filter by class, subject, risk level; sortable tables; charts (risk distribution, trend over time).
-4. **Student Self‑Portal** – Personal risk score, suggested actions, progress tracker.
-5. **Intervention Logging** – Mentor can add counselling, remedial class, assignment extension with remarks; timestamps stored.
-6. **Pre‑/Post‑Intervention Comparison** – Graphs showing risk before and after the logged action.
-7. **Automated Alerts** – Email & in‑app notifications when risk > 80 % or before major exams.
-8. **Export Reports** – PDF/CSV generation for department‐level analytics.
+### 6.1 Multi-Factor Risk Engine
+- **Weighted scoring** using ML-derived SHAP feature weights from `Extra/feature_weights.json`:
+  - Attendance: **35.82%**
+  - Marks: **31.35%**
+  - Assignment Completion: **20.89%**
+  - LMS Activity: **11.94%**
+- Risk levels: **High** (score ≤ 40), **Medium** (41–70), **Low** (71–100)
+- Explainable reasons generated per factor
+
+### 6.2 Risk Trend & Heatmap
+- Historical risk score snapshots stored weekly in `risk_scores` table
+- **Line chart** showing score trend over 6+ weeks
+- **Color-coded heatmap** (green → red) for visual weekly risk progression
+
+### 6.3 Student Attendance (Calendar View)
+- Per-subject attendance cards with percentage and progress bar
+- **Interactive calendar** showing present/absent days color-coded (green/red)
+- Month navigation with subject filtering
+- Overall attendance summary with hall ticket eligibility warning (< 75%)
+
+### 6.4 Learning Hub (LMS)
+- Browse all study materials (PDF, PPT, Video, DOCX)
+- **View** files in new tab (opens directly via static file serving)
+- **Download** files using fetch+blob for reliable browser downloads
+- Filter by type, subject, and search
+- Teachers can upload new materials via the Teacher portal
+
+### 6.5 Grades & Marks Breakdown
+- **4 summary cards**: Overall Average, Percentage, Subject Count, Top Subject
+- **Grouped bar chart** comparing Mid Sem / Internal / IA per subject
+- **Grade distribution pie chart**
+- Detailed marks table with grade computation (O/A+/A/B/C/P/F)
+- Assignment grades section (when available)
+
+### 6.6 Faculty Mentor — Academic Score
+- Renamed from "Risk Score" to **"Academic Score"** for positive framing
+- Academic Score Distribution (pie chart)
+- Student list with Academic Level filtering (Needs Attention / Moderate / On Track)
+- Student detail view with performance chart and intervention history
+
+### 6.7 Teacher Attendance Sync
+- Subject dropdown populated from teacher's assigned subjects
+- Date picker with current-date default
+- **Bulk toggle** (All Present / All Absent) with click-to-toggle rows
+- Live summary (Present / Absent / Rate %)
+- Data saved via UPSERT (`ON CONFLICT DO UPDATE`) — synced with student portal
+
+### 6.8 Teacher Marks Entry
+- Subject dropdown populated from `getMySubjects()` → `/faculty/my/subjects`
+- Loads **existing marks** when subject is selected
+- Exam type tabs: Mid / Internal / IA / EndSem
+- CSV upload and export functionality
+- Empty-state warning when no subjects assigned
 
 ---
 
-## 7. User Flow Diagram
+## 7. API Routes (14 Modules)
 
-```mermaid
-flowchart LR
-    subgraph StudentFlow[Student]
-        S1[Login] --> S2[View Dashboard]
-        S2 --> S3[Risk Score + Reasons]
-        S3 --> S4[Track Progress]
-    end
-    subgraph MentorFlow[Faculty Mentor]
-        M1[Login] --> M2[Dashboard]
-        M2 --> M3[Filter At‑Risk Students]
-        M3 --> M4[View Student Detail]
-        M4 --> M5[Log Intervention]
-        M5 --> M6[View Pre/Post Comparison]
-    end
-    subgraph TeacherFlow[Subject Teacher]
-        T1[Login] --> T2[Upload Marks / Assignments]
-        T2 --> T3[View Subject‑wise Risk]
-    end
-    subgraph AdminFlow[Academic Coordinator]
-        A1[Login] --> A2[Institution‑wide Analytics]
-        A2 --> A3[Export Reports]
-    end
-    StudentFlow --> MentorFlow
-    TeacherFlow --> MentorFlow
-    MentorFlow --> AdminFlow
+| Module | Base Path | Key Endpoints |
+|--------|-----------|---------------|
+| Auth | `/api/auth` | `POST /login`, `POST /logout`, `GET /me` |
+| Students | `/api/students` | `GET /`, `GET /me`, `GET /:id`, `GET /:id/risk`, `GET /:id/attendance`, `GET /:id/marks`, `GET /:id/assignments`, `GET /:id/hallticket` |
+| Attendance | `/api/attendance` | `GET /subject/:subjectId`, `GET /:studentId`, `POST /` (bulk upsert) |
+| Marks | `/api/marks` | `PUT /bulk`, `POST /csv-upload`, `GET /export/:subjectId`, `GET /:studentId` |
+| Assignments | `/api/assignments` | CRUD + `POST /:id/submit`, `GET /:id/submissions`, `PUT /:id/submissions/:studentId/grade` |
+| LMS | `/api/lms` | `GET /`, `POST /upload`, `GET /:subjectId`, `DELETE /:contentId` |
+| Interventions | `/api/interventions` | `GET /`, `GET /suggest/:studentId`, `POST /`, `GET /:studentId`, `DELETE /:id` |
+| Timetable | `/api/timetable` | CRUD by section |
+| Users | `/api/users` | CRUD + CSV import |
+| Hall Ticket | `/api/hallticket` | `GET /rules`, `PUT /rules`, `GET /:studentId/eligibility` |
+| Events | `/api/events` | CRUD |
+| Notifications | `/api/notifications` | `GET /`, `PUT /read-all`, `PUT /:id/read` |
+| Faculty | `/api/faculty` | `GET /`, `GET /my/subjects`, `GET /:id` |
+| Classrooms | `/api/classrooms` | CRUD |
+
+> All routes use `auth` middleware (JWT cookie verification). Role-specific routes use `roleGuard('role1', 'role2', ...)`.
+
+> **Route ordering**: Static endpoints (e.g., `/my/subjects`, `/read-all`, `/bulk`) are defined **before** dynamic parameter routes (`/:id`) to prevent Express matching conflicts.
+
+---
+
+## 8. Environment Variables
+
+Create `server/.env`:
+
+```env
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=campusiq
+DB_USER=postgres
+DB_PASSWORD=your_password
+
+# JWT
+JWT_SECRET=your_secret_key
+
+# Server
+PORT=5000
+CLIENT_URL=http://localhost:5173
+
+# Email (optional — for Nodemailer alerts)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+
+# Grok LLM API (optional — falls back to rule-based insights)
+GROK_API_KEY=
+GROK_API_URL=https://api.x.ai/v1/chat/completions
 ```
 
 ---
 
-## 8. Database Snapshot (Key Tables)
+## 9. Setup & Run
 
-| Table | Primary Purpose |
-|-------|-----------------|
-| `users` | Auth, role (student, mentor, teacher, admin) |
-| `students` | Profile, class, section |
-| `attendance` | Daily attendance records |
-| `marks` | Internal assessment scores |
-| `assignments` | Assignment metadata & submissions |
-| `lms_activity` | LMS login / content view logs |
-| `risk_scores` | Computed risk score + timestamp |
-| `interventions` | Mentor‑logged actions and remarks |
-| `alerts` | Notification queue for real‑time alerts |
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 13+
+- npm
+
+### Step 1: Clone
+```bash
+git clone <repo-url>
+cd Tarkshastra
+```
+
+### Step 2: Install dependencies
+```bash
+cd server && npm install
+cd ../client && npm install
+```
+
+### Step 3: Setup Database
+```bash
+psql -U postgres -c "CREATE DATABASE campusiq;"
+cd server
+npm run migrate    # Creates 16 tables + indexes
+npm run seed       # Seeds realistic data: 35 students, 1 mentor, 3 teachers, 540+ attendance records, etc.
+```
+
+### Step 4: Start Backend
+```bash
+cd server
+npm start          # http://localhost:5000
+```
+
+### Step 5: Start Frontend
+```bash
+cd client
+npm run dev        # http://localhost:5173
+```
+
+### Demo Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Mentor | `anjali.mehta@college.edu` | `Demo@123` |
+| OS Teacher | `rajesh.sharma@college.edu` | `Demo@123` |
+| DBMS Teacher | `neha.patel@college.edu` | `Demo@123` |
+| AWT Teacher | `vikram.singh@college.edu` | `Demo@123` |
+| Admin | `admin@college.edu` | `Demo@123` |
+
+**Students (35 generated accounts):**
+- Example: `aarav.shah@college.edu`, `vivaan.patel@college.edu`, `aditya.joshi@college.edu` 
+- Password for all students: `Demo@123`
 
 ---
 
-## 9. API Overview (selected endpoints)
+## 10. Project Structure
 
-- `POST /api/auth/login` – Returns JWT cookie.
-- `GET /api/students/:id/risk` – Current risk score & top factors.
-- `GET /api/mentor/at‑risk?class=&subject=&level=` – Filtered list.
-- `POST /api/interventions` – Log new intervention.
-- `GET /api/interventions/:studentId` – History + pre/post scores.
-- `GET /api/reports/summary?format=pdf|csv` – Downloadable report.
-
-All routes are protected by **roleGuard** middleware.
+```
+Tarkshastra/
+├── client/                        # React Frontend
+│   ├── src/
+│   │   ├── api/axios.js           # All API functions (60+ exports)
+│   │   ├── context/               # AuthContext, SocketContext
+│   │   ├── components/shared/     # Layout, StatCard, RiskBadge, Toast, etc.
+│   │   ├── pages/
+│   │   │   ├── auth/Login.jsx
+│   │   │   ├── student/           # Dashboard, Risk, Attendance, LMS, Assignments, Schedule, Grades, HallTicket, Faculty
+│   │   │   ├── mentor/            # Dashboard, Students, StudentDetail, Interventions, Remedial
+│   │   │   ├── teacher/           # Dashboard, LMS, Assignments, Marks, Grades, Attendance
+│   │   │   └── admin/             # Dashboard, Users, Timetable, Classrooms, HallTicket, Events
+│   │   └── App.jsx                # 26 routes with PrivateRoute + Layout
+│   ├── vite.config.js             # Proxy: /api, /uploads, /socket.io → :5000
+│   └── package.json
+│
+├── server/                        # Express Backend
+│   ├── db/
+│   │   ├── schema.sql             # 16 tables + indexes
+│   │   ├── migrate.js             # Runs schema.sql
+│   │   ├── seed.js                # Demo data: users, students, attendance, marks, assignments, LMS, timetable, risk trends, etc.
+│   │   └── pool.js                # PostgreSQL connection pool
+│   ├── middleware/
+│   │   ├── authMiddleware.js      # JWT cookie verification
+│   │   └── roleGuard.js           # Role-based access control
+│   ├── routes/                    # 14 route modules
+│   │   ├── auth.js, students.js, attendance.js, marks.js,
+│   │   ├── assignments.js, lms.js, interventions.js, timetable.js,
+│   │   ├── users.js, hallticket.js, events.js, notifications.js,
+│   │   ├── faculty.js, classrooms.js
+│   ├── services/
+│   │   ├── riskEngine.js          # ML-weighted risk computation + trend + suggestions
+│   │   ├── llmService.js          # Grok API integration + rule-based fallback
+│   │   ├── socketService.js       # Real-time notification dispatch
+│   │   └── scheduler.js           # Cron: risk recomputation (2 AM), class reminders
+│   ├── uploads/                   # Auto-created: assignments/, lms/, csv/
+│   ├── server.js                  # App entry point
+│   ├── .env                       # Environment config
+│   └── package.json
+│
+└── Extra/
+    └── feature_weights.json       # ML feature weights: { attendance: 35.82, marks: 31.35, assignment: 20.89, lms: 11.94 }
+```
 
 ---
 
-## 10. Deployment & Run‑Book
+## 11. Seed Data Summary
 
-1. **Clone repository**
-   ```bash
-   git clone <repo-url>
-   cd Tarkshastra
-   ```
-2. **Setup database** (PostgreSQL ≥13)
-   ```bash
-   psql -U postgres -c "CREATE DATABASE campusiq;"
-   cd server && npm run migrate && npm run seed
-   ```
-3. **Environment variables** – copy `.env.example` to `.env` and adjust credentials.
-4. **Run backend**
-   ```bash
-   cd server && npm start   # runs on PORT (default 5000)
-   ```
-5. **Run frontend**
-   ```bash
-   cd client && npm install && npm run dev   # http://localhost:5173
-   ```
-6. **Production** – use Docker compose (provided in `docker-compose.yml`).
+The `seed.js` generates comprehensive demo data:
 
----
-
-## 11. Future Enhancements
-
-| Idea | Benefit |
+| Data | Details |
 |------|---------|
-| **AI‑driven suggestions** – Use LLM to suggest personalised study plans. |
-| **Mobile App** – Native iOS/Android client for push notifications. |
-| **Integration with SIS** – Pull data automatically from existing Student Information Systems. |
-| **Advanced Analytics** – Cohort‑level predictive modelling, churn prediction. |
-| **Role‑based UI theming** – Dark mode per role, custom branding per department. |
+| **Users** | 40 users (35 students, 1 mentor, 3 teachers, 1 admin) |
+| **Students** | 35 students spanning 3 risk groups: 40% good, 40% average, 20% risky |
+| **Subjects** | 3 subjects: OS, DBMS, AWT |
+| **Attendance** | Over 540+ records generated dynamically between Jan 1 and Apr 17 |
+| **Marks** | Mid + Internal + IA + EndSem marks distributed probabilistically by student type |
+| **Assignments** | 3 assignments with dynamic submissions (submitted/late/pending) |
+| **LMS Content** | 5 materials (PDF, PPT, Video) uploaded by teachers |
+| **Timetable** | Full Mon-Sat timetable with balanced subject distribution, labs, and mentor slots |
+| **Risk Trends** | 6 weeks of historical risk scores generated dynamically per student |
+| **Classrooms** | 6 rooms (L-101, LAB-1, etc.) |
+| **Events** | 2 events (Tech Fest, Exam Week) |
+| **Interventions** | Counselor logs for automatically generated high-risk students |
+| **Notifications** | Alerts tied to events and risk levels |
 
 ---
 
-## 12. Conclusion
+## 12. Key Design Decisions
 
-CampusIQ provides a **single pane of glass** for academic risk monitoring, turning fragmented data into actionable insights. By delivering **explainable risk scores**, **real‑time alerts**, and a **closed‑loop intervention workflow**, the platform empowers mentors to intervene early, improves student outcomes, and reduces administrative overhead.
+1. **Risk Score Inversion**: Higher score = better performance (0 = worst, 100 = best). Risk level thresholds: High ≤ 40, Medium 41–70, Low 71–100.
+2. **UPSERT Pattern**: Attendance and marks use `ON CONFLICT DO UPDATE` to prevent duplicates during bulk saves.
+3. **Promise.allSettled**: Dashboard pages use `Promise.allSettled` instead of `Promise.all` so one failing API doesn't break the entire page.
+4. **Route Ordering**: Express routes are carefully ordered — static segments (`/my/subjects`, `/read-all`, `/bulk`) before dynamic params (`/:id`).
+5. **Cookie-based Auth**: JWT stored in httpOnly cookies with `sameSite: 'lax'` for CSRF protection.
+6. **LLM Fallback**: If Grok API key is not configured, the system falls back to rule-based insights.
+7. **Static File Serving**: Uploaded files served via `express.static('/uploads')`, proxied through Vite in development.
 
 ---
 
-*Prepared on 2026‑04‑18*
+## 13. Future Enhancements
+
+| Enhancement | Benefit |
+|-------------|---------|
+| AI-driven personalized study plans | Tailored recommendations per student |
+| Mobile app (React Native) | Push notifications, on-the-go access |
+| SIS integration | Auto-sync with existing Student Information Systems |
+| Advanced analytics | Cohort-level prediction, dropout risk modeling |
+| Parent portal | Family engagement in student progress |
+| Multi-language support | Accessibility for diverse student bodies |
+
+---
+
+## 14. Conclusion
+
+CampusIQ transforms fragmented academic data into a **single, actionable intelligence platform**. With ML-weighted risk scoring, explainable AI insights, real-time notifications, and a closed-loop intervention workflow, the platform enables:
+
+- **Early detection** of at-risk students before performance degrades
+- **Data-driven interventions** with measurable pre/post outcomes
+- **Proactive academic support** reducing dropout rates
+- **Reduced administrative overhead** through automation
+
+---
+
+*Last updated: 2026-04-19*
