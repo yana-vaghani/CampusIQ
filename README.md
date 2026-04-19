@@ -112,17 +112,7 @@ CampusIQ/
 ---
 
 ## 🌐 Deployment
-- **Live Demo:** [Click here to view the live site](https://your-demo-link.com) *(Placeholder)*
-- **Presentation:** [View Hackathon Pitch Deck](https://your-deck-link.com) *(Placeholder)*
+- **Live Demo:** [Click here to view the live site](https://your-demo-link.com) 
+- **Presentation:** [View Hackathon Pitch Deck](https://your-deck-link.com) 
 
 ---
-
-## 👥 The Team
-**Team Tarkshastra**
-- **[Member Name 1]** - [GitHub Profile](https://github.com/username1)
-- **[Member Name 2]** - [GitHub Profile](https://github.com/username2)
-- **[Member Name 3]** - [GitHub Profile](https://github.com/username3)
-- **[Member Name 4]** - [GitHub Profile](https://github.com/username4)
-
----
-*Developed for Hackathon 2026 | Track: Ed-Tech / AI for Good*
