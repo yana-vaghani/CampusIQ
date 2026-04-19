@@ -1,10 +1,9 @@
--- CampusIQ Database Schema
+-- CampusIQ Database Schema v2
 -- Run this file to create all tables
 
--- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Drop tables if they exist (in reverse dependency order)
+-- Drop tables in reverse dependency order
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS risk_scores CASCADE;
 DROP TABLE IF EXISTS interventions CASCADE;
@@ -19,6 +18,7 @@ DROP TABLE IF EXISTS events CASCADE;
 DROP TABLE IF EXISTS subjects CASCADE;
 DROP TABLE IF EXISTS students CASCADE;
 DROP TABLE IF EXISTS faculty CASCADE;
+DROP TABLE IF EXISTS classrooms CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
 -- 1. Users
@@ -70,14 +70,15 @@ CREATE TABLE attendance (
   UNIQUE(student_id, subject_id, date)
 );
 
--- 6. Marks
+-- 6. Marks (mid + internal only; end-sem added when conducted)
 CREATE TABLE marks (
   id SERIAL PRIMARY KEY,
   student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
   subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
   mid_marks NUMERIC(5,2) DEFAULT 0 CHECK (mid_marks >= 0 AND mid_marks <= 25),
   internal_marks NUMERIC(5,2) DEFAULT 0 CHECK (internal_marks >= 0 AND internal_marks <= 25),
-  endsem_marks NUMERIC(5,2) DEFAULT 0 CHECK (endsem_marks >= 0 AND endsem_marks <= 100),
+  endsem_marks NUMERIC(5,2) DEFAULT NULL CHECK (endsem_marks IS NULL OR (endsem_marks >= 0 AND endsem_marks <= 100)),
+  ia_marks NUMERIC(5,2) DEFAULT 0 CHECK (ia_marks >= 0 AND ia_marks <= 25),
   UNIQUE(student_id, subject_id)
 );
 
@@ -88,6 +89,7 @@ CREATE TABLE assignments (
   title VARCHAR(200) NOT NULL,
   description TEXT,
   deadline TIMESTAMP NOT NULL,
+  allow_late BOOLEAN DEFAULT FALSE,
   created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -98,8 +100,11 @@ CREATE TABLE submissions (
   assignment_id INTEGER REFERENCES assignments(id) ON DELETE CASCADE,
   student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
   file_url VARCHAR(500),
+  original_filename VARCHAR(255),
   submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('submitted', 'pending', 'late')),
+  grade NUMERIC(5,2) DEFAULT NULL,
+  grade_remarks TEXT,
   UNIQUE(assignment_id, student_id)
 );
 
@@ -109,7 +114,9 @@ CREATE TABLE lms_content (
   subject_id INTEGER REFERENCES subjects(id) ON DELETE CASCADE,
   title VARCHAR(200) NOT NULL,
   file_url VARCHAR(500),
-  type VARCHAR(20) NOT NULL CHECK (type IN ('pdf', 'ppt', 'video')),
+  original_filename VARCHAR(255),
+  type VARCHAR(20) NOT NULL CHECK (type IN ('pdf', 'ppt', 'video', 'link', 'docx')),
+  uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -124,21 +131,24 @@ CREATE TABLE timetable (
   room_number VARCHAR(20)
 );
 
--- 11. Interventions
+-- 11. Interventions (with LLM suggestions stored)
 CREATE TABLE interventions (
   id SERIAL PRIMARY KEY,
   student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
   mentor_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-  type VARCHAR(30) NOT NULL CHECK (type IN ('counseling', 'remedial')),
+  type VARCHAR(30) NOT NULL CHECK (type IN ('counseling', 'remedial', 'assignment_extension', 'parent_communication', 'other')),
   remarks TEXT,
+  llm_suggestion TEXT,
+  scheduled_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 12. Events
+-- 12. Events (with duration)
 CREATE TABLE events (
   id SERIAL PRIMARY KEY,
   title VARCHAR(200) NOT NULL,
-  date DATE NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE,
   description TEXT,
   created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -161,14 +171,25 @@ CREATE TABLE notifications (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 15. Risk Scores (snapshot)
+-- 15. Risk Scores (snapshots + LLM insights)
 CREATE TABLE risk_scores (
   id SERIAL PRIMARY KEY,
   student_id INTEGER REFERENCES students(id) ON DELETE CASCADE,
   score NUMERIC(5,2) NOT NULL,
   level VARCHAR(10) NOT NULL CHECK (level IN ('high', 'medium', 'low')),
   reasons TEXT[],
+  llm_insights TEXT,
   computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 16. Classrooms
+CREATE TABLE classrooms (
+  id SERIAL PRIMARY KEY,
+  number VARCHAR(20) UNIQUE NOT NULL,
+  capacity INTEGER NOT NULL DEFAULT 60,
+  type VARCHAR(20) NOT NULL DEFAULT 'lecture' CHECK (type IN ('lecture', 'lab', 'seminar')),
+  building VARCHAR(50),
+  is_available BOOLEAN DEFAULT TRUE
 );
 
 -- Indexes for performance

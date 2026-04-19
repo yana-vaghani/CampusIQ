@@ -31,6 +31,7 @@ import TeacherLMS from './pages/teacher/LMS';
 import TeacherAssignments from './pages/teacher/Assignments';
 import TeacherMarks from './pages/teacher/Marks';
 import TeacherGrades from './pages/teacher/Grades';
+import TeacherAttendance from './pages/teacher/Attendance';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -39,6 +40,9 @@ import AdminTimetable from './pages/admin/Timetable';
 import AdminClassrooms from './pages/admin/Classrooms';
 import AdminHallTicket from './pages/admin/HallTicket';
 import AdminEvents from './pages/admin/Events';
+import ViewPDFs from "./pages/student/ViewPDFs";
+
+<Route path="/pdfs" element={<ViewPDFs />} />
 
 function AppRoutes() {
   return (
@@ -46,6 +50,8 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
 
+
+      <Route path="/pdfs" element={<ViewPDFs />} />
       {/* Student Routes */}
       <Route path="/student/dashboard" element={<PrivateRoute role={['student']}><Layout><StudentDashboard /></Layout></PrivateRoute>} />
       <Route path="/student/risk" element={<PrivateRoute role={['student']}><Layout><StudentRisk /></Layout></PrivateRoute>} />
@@ -70,6 +76,7 @@ function AppRoutes() {
       <Route path="/teacher/assignments" element={<PrivateRoute role={['teacher']}><Layout><TeacherAssignments /></Layout></PrivateRoute>} />
       <Route path="/teacher/marks" element={<PrivateRoute role={['teacher']}><Layout><TeacherMarks /></Layout></PrivateRoute>} />
       <Route path="/teacher/grades" element={<PrivateRoute role={['teacher']}><Layout><TeacherGrades /></Layout></PrivateRoute>} />
+      <Route path="/teacher/attendance" element={<PrivateRoute role={['teacher']}><Layout><TeacherAttendance /></Layout></PrivateRoute>} />
 
       {/* Admin Routes */}
       <Route path="/admin/dashboard" element={<PrivateRoute role={['admin']}><Layout><AdminDashboard /></Layout></PrivateRoute>} />
@@ -79,7 +86,6 @@ function AppRoutes() {
       <Route path="/admin/hallticket" element={<PrivateRoute role={['admin']}><Layout><AdminHallTicket /></Layout></PrivateRoute>} />
       <Route path="/admin/events" element={<PrivateRoute role={['admin']}><Layout><AdminEvents /></Layout></PrivateRoute>} />
 
-      {/* Catch all */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );

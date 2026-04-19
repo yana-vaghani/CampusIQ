@@ -25,7 +25,13 @@ router.post('/login', async (req, res) => {
     let extraInfo = {};
     if (user.role === 'student') {
       const student = await pool.query('SELECT * FROM students WHERE user_id = $1', [user.id]);
-      if (student.rows[0]) extraInfo.studentId = student.rows[0].id;
+      if (student.rows[0]) {
+        extraInfo.studentId = student.rows[0].id;
+        extraInfo.rollNo = student.rows[0].roll_no;
+        extraInfo.semester = student.rows[0].semester;
+        extraInfo.section = student.rows[0].section;
+        extraInfo.mentorId = student.rows[0].mentor_id;
+      }
     }
 
     const token = jwt.sign(

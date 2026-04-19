@@ -10,7 +10,7 @@ export default function MentorStudents() {
   const [riskFilter, setRiskFilter] = useState('');
 
   useEffect(() => {
-    getStudents().then(r => setStudents(r.data));
+    getStudents().then(r => setStudents(r.data)).catch(() => {});
   }, []);
 
   const filtered = students.filter(s => {
@@ -28,10 +28,10 @@ export default function MentorStudents() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or roll no..." className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 text-sm" />
         </div>
         <select value={riskFilter} onChange={e => setRiskFilter(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm">
-          <option value="">All Risk Levels</option>
-          <option value="high">High Risk</option>
-          <option value="medium">Medium Risk</option>
-          <option value="low">Low Risk</option>
+          <option value="">All Academic Levels</option>
+          <option value="high">Needs Attention</option>
+          <option value="medium">Moderate</option>
+          <option value="low">On Track</option>
         </select>
       </div>
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -39,8 +39,8 @@ export default function MentorStudents() {
           <thead><tr className="border-b border-gray-100 bg-gray-50">
             <th className="text-left py-3 px-4 font-medium text-gray-500">Student</th>
             <th className="text-left py-3 px-4 font-medium text-gray-500">Roll No</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-500">Risk Level</th>
-            <th className="text-left py-3 px-4 font-medium text-gray-500">Score</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-500">Academic Level</th>
+            <th className="text-left py-3 px-4 font-medium text-gray-500">Academic Score</th>
             <th className="text-left py-3 px-4 font-medium text-gray-500">Actions</th>
           </tr></thead>
           <tbody>{filtered.map(s => (

@@ -19,21 +19,21 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// PUT /api/notifications/:id/read
-router.put('/:id/read', auth, async (req, res) => {
+// PUT /api/notifications/read-all — MUST be before /:id/read
+router.put('/read-all', auth, async (req, res) => {
   try {
-    await pool.query('UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
-    res.json({ message: 'Notification marked as read' });
+    await pool.query('UPDATE notifications SET is_read = true WHERE user_id = $1', [req.user.id]);
+    res.json({ message: 'All notifications marked as read' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// PUT /api/notifications/read-all
-router.put('/read-all', auth, async (req, res) => {
+// PUT /api/notifications/:id/read
+router.put('/:id/read', auth, async (req, res) => {
   try {
-    await pool.query('UPDATE notifications SET is_read = true WHERE user_id = $1', [req.user.id]);
-    res.json({ message: 'All notifications marked as read' });
+    await pool.query('UPDATE notifications SET is_read = true WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    res.json({ message: 'Notification marked as read' });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

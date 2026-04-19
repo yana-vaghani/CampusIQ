@@ -3,47 +3,79 @@ const pool = require('./pool');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
+function getDates(start, end) {
+  const dates = [];
+  let current = new Date(start);
+  while (current <= new Date(end)) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+
+function getStudentType(index) {
+  if (index < 14) return "good";     // 40%
+  if (index < 28) return "average";  // 40%
+  return "risky";                    // 20%
+}
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 async function seed() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     // Hash password
-    const hash = await bcrypt.hash('Demo@1234', 10);
+    const hash = await bcrypt.hash('Demo@123', 10);
 
-    // 1. Create Users
-    const users = [
-      { name: 'Alex Student', email: 'student@demo.com', role: 'student', department: 'Computer Science' },
-      { name: 'Dr. Sarah Mentor', email: 'mentor@demo.com', role: 'mentor', department: 'Computer Science' },
-      { name: 'Prof. James Teacher', email: 'teacher@demo.com', role: 'teacher', department: 'Computer Science' },
-      { name: 'Admin User', email: 'admin@demo.com', role: 'admin', department: 'Administration' },
-      // Extra students for mentor view
-      { name: 'Emma Wilson', email: 'emma@demo.com', role: 'student', department: 'Computer Science' },
-      { name: 'Liam Chen', email: 'liam@demo.com', role: 'student', department: 'Computer Science' },
-      { name: 'Sophia Patel', email: 'sophia@demo.com', role: 'student', department: 'Computer Science' },
-      { name: 'Noah Garcia', email: 'noah@demo.com', role: 'student', department: 'Computer Science' },
-      { name: 'Olivia Brown', email: 'olivia@demo.com', role: 'student', department: 'Computer Science' },
-      // Extra teacher
-      { name: 'Dr. Maria Physics', email: 'maria@demo.com', role: 'teacher', department: 'Physics' },
-      { name: 'Prof. Robert Math', email: 'robert@demo.com', role: 'teacher', department: 'Mathematics' },
+    // 1. Create Users (Admin, Mentor, Teachers)
+    const staffUsers = [
+      { name: 'Admin User', email: 'admin@college.edu', role: 'admin', department: 'Administration' },
+      { name: 'Dr. Anjali Mehta', email: 'anjali.mehta@college.edu', role: 'mentor', department: 'CSE' },
+      { name: 'Prof. Rajesh Sharma', email: 'rajesh.sharma@college.edu', role: 'teacher', department: 'CSE' },
+      { name: 'Prof. Neha Patel', email: 'neha.patel@college.edu', role: 'teacher', department: 'CSE' },
+      { name: 'Prof. Vikram Singh', email: 'vikram.singh@college.edu', role: 'teacher', department: 'CSE' },
     ];
 
     const userIds = {};
-    for (const u of users) {
+    for (const u of staffUsers) {
       const res = await client.query(
         'INSERT INTO users (name, email, password_hash, role, department) VALUES ($1, $2, $3, $4, $5) RETURNING id',
         [u.name, u.email, hash, u.role, u.department]
       );
       userIds[u.email] = res.rows[0].id;
     }
+
+    // 2. Create Students (35 Users)
+    const studentNames = [
+      'Aarav Shah', 'Vivaan Patel', 'Aditya Joshi', 'Krishna Iyer', 'Arjun Reddy', 'Sai Kumar', 'Rohan Desai', 'Yash Verma', 'Harsh Gupta', 'Manav Jain',
+      'Riya Shah', 'Ananya Patel', 'Diya Mehta', 'Kavya Nair', 'Ishita Singh', 'Pooja Sharma', 'Sneha Iyer', 'Aditi Desai', 'Meera Joshi', 'Nisha Gupta',
+      'Rahul Mishra', 'Aman Yadav', 'Kunal Agarwal', 'Deepak Choudhary', 'Siddharth Roy',
+      'Tanvi Kulkarni', 'Shruti Menon', 'Priya Nair', 'Komal Jain', 'Neelam Verma',
+      'Mohit Saxena', 'Varun Khanna', 'Akash Pandey', 'Nitin Bansal', 'Rajat Kapoor'
+    ];
+    
+    const studentsList = [];
+    for (let i = 0; i < studentNames.length; i++) {
+      const email = studentNames[i].toLowerCase().replace(' ', '.') + '@college.edu';
+      const res = await client.query(
+        'INSERT INTO users (name, email, password_hash, role, department) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [studentNames[i], email, hash, 'student', 'CSE']
+      );
+      studentsList.push({ id: res.rows[0].id, name: studentNames[i], email, index: i });
+      userIds[email] = res.rows[0].id;
+    }
     console.log('✅ Users seeded');
 
-    // 2. Create Faculty
+    // 3. Create Faculty
     const facultyData = [
-      { userId: userIds['mentor@demo.com'], dept: 'Computer Science', cabin: 'C-201', subjects: 'Data Structures, Algorithms' },
-      { userId: userIds['teacher@demo.com'], dept: 'Computer Science', cabin: 'C-305', subjects: 'Computer Science' },
-      { userId: userIds['maria@demo.com'], dept: 'Physics', cabin: 'P-102', subjects: 'Physics' },
-      { userId: userIds['robert@demo.com'], dept: 'Mathematics', cabin: 'M-204', subjects: 'Mathematics' },
+      { userId: userIds['anjali.mehta@college.edu'], dept: 'CSE', cabin: 'C-201', subjects: 'Mentor' },
+      { userId: userIds['rajesh.sharma@college.edu'], dept: 'CSE', cabin: 'C-301', subjects: 'Operating Systems' },
+      { userId: userIds['neha.patel@college.edu'], dept: 'CSE', cabin: 'C-302', subjects: 'DBMS' },
+      { userId: userIds['vikram.singh@college.edu'], dept: 'CSE', cabin: 'C-303', subjects: 'AWT' },
     ];
     for (const f of facultyData) {
       await client.query(
@@ -53,173 +85,73 @@ async function seed() {
     }
     console.log('✅ Faculty seeded');
 
-    // 3. Create Students
-    const studentEmails = ['student@demo.com', 'emma@demo.com', 'liam@demo.com', 'sophia@demo.com', 'noah@demo.com', 'olivia@demo.com'];
-    const rollNos = ['CS2024001', 'CS2024002', 'CS2024003', 'CS2024004', 'CS2024005', 'CS2024006'];
-    const studentIds = {};
-
-    for (let i = 0; i < studentEmails.length; i++) {
+    // 4. Create Students profiles
+    const studentProfileIds = {};
+    for (let i = 0; i < studentsList.length; i++) {
+      const s = studentsList[i];
+      const rollNo = `23BCP${(i + 101).toString()}`;
       const res = await client.query(
         'INSERT INTO students (user_id, roll_no, semester, section, mentor_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [userIds[studentEmails[i]], rollNos[i], 4, 'A', userIds['mentor@demo.com']]
+        [s.id, rollNo, 5, 'A', userIds['anjali.mehta@college.edu']]
       );
-      studentIds[studentEmails[i]] = res.rows[0].id;
+      studentProfileIds[s.email] = res.rows[0].id;
+      studentsList[i].profileId = res.rows[0].id;
     }
     console.log('✅ Students seeded');
 
-    // 4. Create Subjects
+    // 5. Create Subjects
     const subjectsData = [
-      { name: 'Mathematics', code: 'MA201', teacherId: userIds['robert@demo.com'], semester: 4 },
-      { name: 'Physics', code: 'PH201', teacherId: userIds['maria@demo.com'], semester: 4 },
-      { name: 'Computer Science', code: 'CS201', teacherId: userIds['teacher@demo.com'], semester: 4 },
+      { name: 'Operating Systems', code: 'CS301', teacherId: userIds['rajesh.sharma@college.edu'], semester: 5 },
+      { name: 'Database Management Systems', code: 'CS302', teacherId: userIds['neha.patel@college.edu'], semester: 5 },
+      { name: 'Advanced Web Technology', code: 'CS303', teacherId: userIds['vikram.singh@college.edu'], semester: 5 },
     ];
     const subjectIds = {};
+    const subjectList = [];
     for (const s of subjectsData) {
       const res = await client.query(
         'INSERT INTO subjects (name, code, teacher_id, semester) VALUES ($1, $2, $3, $4) RETURNING id',
         [s.name, s.code, s.teacherId, s.semester]
       );
       subjectIds[s.code] = res.rows[0].id;
+      subjectList.push({ id: res.rows[0].id, code: s.code, name: s.name });
     }
     console.log('✅ Subjects seeded');
 
-    // 5. Create Attendance (30 records per student per subject)
-    const statuses = ['present', 'absent'];
-    // Different attendance patterns per student
-    const attendanceWeights = {
-      'student@demo.com': 0.65,  // 65% - medium risk
-      'emma@demo.com': 0.90,     // 90% - low risk
-      'liam@demo.com': 0.45,     // 45% - high risk
-      'sophia@demo.com': 0.78,   // 78% - medium/low
-      'noah@demo.com': 0.55,     // 55% - high risk
-      'olivia@demo.com': 0.85,   // 85% - low risk
-    };
-
-    const startDate = new Date('2026-01-15');
-    for (const email of studentEmails) {
-      const sId = studentIds[email];
-      const weight = attendanceWeights[email];
-      for (const [code, subId] of Object.entries(subjectIds)) {
-        for (let d = 0; d < 30; d++) {
-          const date = new Date(startDate);
-          date.setDate(date.getDate() + d);
-          // Skip weekends
-          if (date.getDay() === 0 || date.getDay() === 6) continue;
-          const status = Math.random() < weight ? 'present' : 'absent';
-          await client.query(
-            'INSERT INTO attendance (student_id, subject_id, date, status) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
-            [sId, subId, date.toISOString().split('T')[0], status]
-          );
-        }
-      }
-    }
-    console.log('✅ Attendance seeded');
-
-    // 6. Create Marks (varied per student)
-    const marksData = {
-      'student@demo.com': { mid: [15, 12, 18], internal: [14, 10, 16], endsem: [55, 45, 65] },
-      'emma@demo.com':    { mid: [22, 20, 23], internal: [21, 19, 22], endsem: [85, 78, 90] },
-      'liam@demo.com':    { mid: [8, 10, 12],  internal: [7, 9, 10],  endsem: [30, 35, 40] },
-      'sophia@demo.com':  { mid: [18, 16, 20], internal: [17, 15, 18], endsem: [65, 60, 72] },
-      'noah@demo.com':    { mid: [10, 13, 11], internal: [9, 11, 8],  endsem: [38, 42, 35] },
-      'olivia@demo.com':  { mid: [20, 21, 19], internal: [19, 20, 18], endsem: [75, 80, 70] },
-    };
-    const subjectCodes = Object.keys(subjectIds);
-    for (const email of studentEmails) {
-      const sId = studentIds[email];
-      const m = marksData[email];
-      for (let i = 0; i < subjectCodes.length; i++) {
-        await client.query(
-          'INSERT INTO marks (student_id, subject_id, mid_marks, internal_marks, endsem_marks) VALUES ($1, $2, $3, $4, $5)',
-          [sId, subjectIds[subjectCodes[i]], m.mid[i], m.internal[i], m.endsem[i]]
-        );
-      }
-    }
-    console.log('✅ Marks seeded');
-
-    // 7. Create Assignments
-    const assignmentsData = [
-      { subjectId: subjectIds['CS201'], title: 'Data Structures Assignment 1', desc: 'Implement a binary search tree with all operations', deadline: '2026-04-25 23:59:00' },
-      { subjectId: subjectIds['CS201'], title: 'Algorithm Analysis Report', desc: 'Analyze time complexity of sorting algorithms', deadline: '2026-04-20 23:59:00' },
-      { subjectId: subjectIds['MA201'], title: 'Calculus Problem Set 3', desc: 'Solve integration problems from Chapter 5', deadline: '2026-04-22 23:59:00' },
-      { subjectId: subjectIds['PH201'], title: 'Quantum Mechanics Lab Report', desc: 'Write a lab report on the double-slit experiment', deadline: '2026-04-18 23:59:00' },
-      { subjectId: subjectIds['PH201'], title: 'Thermodynamics Assignment', desc: 'Solve problems on entropy and heat engines', deadline: '2026-05-01 23:59:00' },
-    ];
-    const assignmentIds = [];
-    for (const a of assignmentsData) {
-      const res = await client.query(
-        'INSERT INTO assignments (subject_id, title, description, deadline, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-        [a.subjectId, a.title, a.desc, a.deadline, userIds['teacher@demo.com']]
-      );
-      assignmentIds.push(res.rows[0].id);
-    }
-    console.log('✅ Assignments seeded');
-
-    // 8. Create Submissions
-    const submissionStatuses = [
-      { assignmentIdx: 0, email: 'student@demo.com', status: 'submitted', date: '2026-04-20 14:30:00' },
-      { assignmentIdx: 1, email: 'student@demo.com', status: 'late', date: '2026-04-21 02:15:00' },
-      { assignmentIdx: 2, email: 'student@demo.com', status: 'pending', date: null },
-      { assignmentIdx: 3, email: 'student@demo.com', status: 'submitted', date: '2026-04-17 18:00:00' },
-      { assignmentIdx: 4, email: 'student@demo.com', status: 'pending', date: null },
-      { assignmentIdx: 0, email: 'emma@demo.com', status: 'submitted', date: '2026-04-19 10:00:00' },
-      { assignmentIdx: 1, email: 'emma@demo.com', status: 'submitted', date: '2026-04-19 11:00:00' },
-      { assignmentIdx: 2, email: 'emma@demo.com', status: 'submitted', date: '2026-04-20 09:00:00' },
-      { assignmentIdx: 0, email: 'liam@demo.com', status: 'pending', date: null },
-      { assignmentIdx: 1, email: 'liam@demo.com', status: 'pending', date: null },
-    ];
-    for (const s of submissionStatuses) {
-      if (s.status === 'pending') {
-        await client.query(
-          'INSERT INTO submissions (assignment_id, student_id, status) VALUES ($1, $2, $3)',
-          [assignmentIds[s.assignmentIdx], studentIds[s.email], s.status]
-        );
-      } else {
-        await client.query(
-          'INSERT INTO submissions (assignment_id, student_id, file_url, submitted_at, status) VALUES ($1, $2, $3, $4, $5)',
-          [assignmentIds[s.assignmentIdx], studentIds[s.email], `/uploads/assignment_${s.assignmentIdx}.pdf`, s.date, s.status]
-        );
-      }
-    }
-    console.log('✅ Submissions seeded');
-
-    // 9. Create LMS Content
-    const lmsData = [
-      { subjectId: subjectIds['CS201'], title: 'Introduction to Data Structures', type: 'pdf' },
-      { subjectId: subjectIds['CS201'], title: 'Sorting Algorithms Lecture', type: 'video' },
-      { subjectId: subjectIds['CS201'], title: 'Trees and Graphs PPT', type: 'ppt' },
-      { subjectId: subjectIds['MA201'], title: 'Calculus Fundamentals', type: 'pdf' },
-      { subjectId: subjectIds['MA201'], title: 'Linear Algebra Notes', type: 'pdf' },
-      { subjectId: subjectIds['MA201'], title: 'Differential Equations Lecture', type: 'video' },
-      { subjectId: subjectIds['PH201'], title: 'Quantum Mechanics Basics', type: 'pdf' },
-      { subjectId: subjectIds['PH201'], title: 'Thermodynamics Slides', type: 'ppt' },
-      { subjectId: subjectIds['PH201'], title: 'Optics Lab Demo', type: 'video' },
-    ];
-    for (const l of lmsData) {
-      await client.query(
-        'INSERT INTO lms_content (subject_id, title, file_url, type) VALUES ($1, $2, $3, $4)',
-        [l.subjectId, l.title, `/uploads/lms/${l.title.replace(/\s+/g, '_').toLowerCase()}.${l.type === 'video' ? 'mp4' : l.type}`, l.type]
-      );
-    }
-    console.log('✅ LMS Content seeded');
-
-    // 10. Create Timetable (Mon-Fri)
+    // 6. Timetable
     const timetableData = [
-      { subjectId: subjectIds['MA201'], day: 'Monday', start: '09:00', end: '10:00', room: 'LH-101' },
-      { subjectId: subjectIds['PH201'], day: 'Monday', start: '10:15', end: '11:15', room: 'LH-102' },
-      { subjectId: subjectIds['CS201'], day: 'Monday', start: '11:30', end: '12:30', room: 'Lab-201' },
-      { subjectId: subjectIds['CS201'], day: 'Tuesday', start: '09:00', end: '10:00', room: 'Lab-201' },
-      { subjectId: subjectIds['MA201'], day: 'Tuesday', start: '10:15', end: '11:15', room: 'LH-101' },
-      { subjectId: subjectIds['PH201'], day: 'Tuesday', start: '14:00', end: '15:00', room: 'LH-102' },
-      { subjectId: subjectIds['PH201'], day: 'Wednesday', start: '09:00', end: '10:00', room: 'Lab-301' },
-      { subjectId: subjectIds['MA201'], day: 'Wednesday', start: '11:30', end: '12:30', room: 'LH-101' },
-      { subjectId: subjectIds['CS201'], day: 'Wednesday', start: '14:00', end: '15:30', room: 'Lab-201' },
-      { subjectId: subjectIds['MA201'], day: 'Thursday', start: '09:00', end: '10:00', room: 'LH-101' },
-      { subjectId: subjectIds['CS201'], day: 'Thursday', start: '10:15', end: '11:15', room: 'Lab-201' },
-      { subjectId: subjectIds['PH201'], day: 'Thursday', start: '14:00', end: '15:00', room: 'LH-102' },
-      { subjectId: subjectIds['CS201'], day: 'Friday', start: '09:00', end: '10:30', room: 'Lab-201' },
-      { subjectId: subjectIds['PH201'], day: 'Friday', start: '11:00', end: '12:00', room: 'LH-102' },
-      { subjectId: subjectIds['MA201'], day: 'Friday', start: '14:00', end: '15:00', room: 'LH-101' },
+      // Monday
+      { subjectId: subjectIds['CS301'], day: 'Monday', start: '09:00', end: '10:00', room: 'L-101' },
+      { subjectId: subjectIds['CS302'], day: 'Monday', start: '10:00', end: '11:00', room: 'L-102' },
+      { subjectId: subjectIds['CS303'], day: 'Monday', start: '11:15', end: '12:15', room: 'L-103' },
+      { subjectId: subjectIds['CS301'], day: 'Monday', start: '12:15', end: '13:15', room: 'L-101' },
+      { subjectId: subjectIds['CS302'], day: 'Monday', start: '14:00', end: '16:00', room: 'LAB-1' },
+      // Tuesday
+      { subjectId: subjectIds['CS302'], day: 'Tuesday', start: '09:00', end: '10:00', room: 'L-102' },
+      { subjectId: subjectIds['CS303'], day: 'Tuesday', start: '10:00', end: '11:00', room: 'L-103' },
+      { subjectId: subjectIds['CS301'], day: 'Tuesday', start: '11:15', end: '12:15', room: 'L-101' },
+      { subjectId: subjectIds['CS302'], day: 'Tuesday', start: '12:15', end: '13:15', room: 'L-102' },
+      { subjectId: subjectIds['CS303'], day: 'Tuesday', start: '14:00', end: '16:00', room: 'LAB-2' },
+      // Wednesday
+      { subjectId: subjectIds['CS303'], day: 'Wednesday', start: '09:00', end: '10:00', room: 'L-103' },
+      { subjectId: subjectIds['CS301'], day: 'Wednesday', start: '10:00', end: '11:00', room: 'L-101' },
+      { subjectId: subjectIds['CS302'], day: 'Wednesday', start: '11:15', end: '12:15', room: 'L-102' },
+      { subjectId: subjectIds['CS303'], day: 'Wednesday', start: '12:15', end: '13:15', room: 'L-103' },
+      { subjectId: subjectIds['CS301'], day: 'Wednesday', start: '14:00', end: '16:00', room: 'LAB-1' },
+      // Thursday
+      { subjectId: subjectIds['CS301'], day: 'Thursday', start: '09:00', end: '10:00', room: 'L-101' },
+      { subjectId: subjectIds['CS302'], day: 'Thursday', start: '10:00', end: '11:00', room: 'L-102' },
+      { subjectId: subjectIds['CS303'], day: 'Thursday', start: '11:15', end: '12:15', room: 'L-103' },
+      { subjectId: subjectIds['CS302'], day: 'Thursday', start: '12:15', end: '13:15', room: 'L-102' },
+      // Friday
+      { subjectId: subjectIds['CS302'], day: 'Friday', start: '09:00', end: '10:00', room: 'L-102' },
+      { subjectId: subjectIds['CS301'], day: 'Friday', start: '10:00', end: '11:00', room: 'L-101' },
+      { subjectId: subjectIds['CS303'], day: 'Friday', start: '11:15', end: '12:15', room: 'L-103' },
+      { subjectId: subjectIds['CS301'], day: 'Friday', start: '12:15', end: '13:15', room: 'L-101' },
+      { subjectId: subjectIds['CS303'], day: 'Friday', start: '14:00', end: '16:00', room: 'LAB-2' },
+      // Saturday
+      { subjectId: subjectIds['CS303'], day: 'Saturday', start: '09:00', end: '10:00', room: 'L-103' },
+      { subjectId: subjectIds['CS302'], day: 'Saturday', start: '10:00', end: '11:00', room: 'L-102' },
+      { subjectId: subjectIds['CS301'], day: 'Saturday', start: '11:15', end: '12:15', room: 'L-101' },
     ];
     for (const t of timetableData) {
       await client.query(
@@ -229,63 +161,238 @@ async function seed() {
     }
     console.log('✅ Timetable seeded');
 
-    // 11. Create Events
-    await client.query(
-      'INSERT INTO events (title, date, description, created_by) VALUES ($1, $2, $3, $4)',
-      ['Annual Tech Fest 2026', '2026-05-15', 'Annual technology festival with hackathons, workshops, and tech talks. All departments participate.', userIds['admin@demo.com']]
-    );
-    await client.query(
-      'INSERT INTO events (title, date, description, created_by) VALUES ($1, $2, $3, $4)',
-      ['Mid-Semester Exam Week', '2026-04-28', 'Mid-semester examinations for all departments. Check your hall tickets for schedule.', userIds['admin@demo.com']]
-    );
-    console.log('✅ Events seeded');
+    // 7. Generate Attendance Data
+    const dates = getDates("2026-01-01", "2026-04-17");
+    let attendanceCount = 0;
+    
+    // Batch insert helper for performance
+    const insertAttendance = async (records) => {
+      for (const r of records) {
+        await client.query(
+          'INSERT INTO attendance (student_id, subject_id, date, status) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+          [r.student_id, r.subject_id, r.date, r.status]
+        );
+        attendanceCount++;
+      }
+    };
+    
+    let attBatch = [];
+    for (const date of dates) {
+      const day = date.getDay(); // 0 = Sunday
+      if (day === 0) continue; // skip Sunday
+      
+      const dateStr = date.toISOString().split("T")[0];
+      for (const student of studentsList) {
+        const type = getStudentType(student.index);
+        
+        for (const subject of subjectList) {
+          let baseProb;
+          if (type === "good") baseProb = 0.80;
+          else if (type === "average") baseProb = 0.55;
+          else baseProb = 0.35;
+          
+          // Student specific variance to make data distinctly varied per student instead of uniformly random
+          const studentVariance = (student.index % 5) * 0.05; 
+          const probability = Math.min(0.98, baseProb + studentVariance);
+          
+          const status = Math.random() < probability ? "present" : "absent";
+          attBatch.push({ student_id: student.profileId, subject_id: subject.id, date: dateStr, status });
+          
+          if (attBatch.length > 500) {
+            await insertAttendance(attBatch);
+            attBatch = [];
+          }
+        }
+      }
+    }
+    if (attBatch.length > 0) await insertAttendance(attBatch);
+    console.log(`✅ Attendance seeded (${attendanceCount} records)`);
 
-    // 12. Hall Ticket Rules
+    // 8. Generate Marks
+    for (const student of studentsList) {
+      const type = getStudentType(student.index);
+      
+      // Personal offset to make students distinct (some always get high, some low within their band)
+      const personalOffset = (student.index % 4) - 2; 
+
+      for (const subject of subjectList) {
+        let mid, internal, ia, endsem;
+        if (type === "good") {
+          mid = Math.min(25, Math.max(15, rand(18, 23) + personalOffset)); 
+          internal = Math.min(25, Math.max(15, rand(18, 23) + personalOffset)); 
+          ia = Math.min(25, Math.max(15, rand(18, 23) + personalOffset)); 
+          endsem = Math.min(100, Math.max(60, rand(75, 90) + (personalOffset * 3)));
+        } else if (type === "average") {
+          mid = Math.min(25, Math.max(8, rand(12, 17) + personalOffset)); 
+          internal = Math.min(25, Math.max(8, rand(12, 17) + personalOffset)); 
+          ia = Math.min(25, Math.max(8, rand(12, 17) + personalOffset)); 
+          endsem = Math.min(100, Math.max(40, rand(50, 70) + (personalOffset * 2)));
+        } else {
+          mid = Math.min(25, Math.max(0, rand(4, 9) + personalOffset)); 
+          internal = Math.min(25, Math.max(0, rand(4, 9) + personalOffset)); 
+          ia = Math.min(25, Math.max(0, rand(4, 9) + personalOffset)); 
+          endsem = Math.min(100, Math.max(10, rand(25, 45) + (personalOffset * 2)));
+        }
+        await client.query(
+          'INSERT INTO marks (student_id, subject_id, mid_marks, internal_marks, ia_marks, endsem_marks) VALUES ($1, $2, $3, $4, $5, $6)',
+          [student.profileId, subject.id, mid, internal, ia, endsem]
+        );
+      }
+    }
+    console.log('✅ Marks seeded');
+
+    // 9. Assignments
+    const assignmentsData = [
+      // OS (5 assignments)
+      { title: "OS Process Scheduling", desc: "Implement process scheduling algorithms.", deadline: "2026-02-10", subjectId: subjectIds['CS301'], creator: userIds['rajesh.sharma@college.edu'] },
+      { title: "Memory Management Simulation", desc: "Simulate paging and segmentation.", deadline: "2026-02-25", subjectId: subjectIds['CS301'], creator: userIds['rajesh.sharma@college.edu'] },
+      { title: "Deadlock Detection", desc: "Banker's algorithm implementation.", deadline: "2026-03-15", subjectId: subjectIds['CS301'], creator: userIds['rajesh.sharma@college.edu'] },
+      { title: "File Systems Overview", desc: "Report on Linux EXT4 vs Windows NTFS.", deadline: "2026-04-05", subjectId: subjectIds['CS301'], creator: userIds['rajesh.sharma@college.edu'] },
+      { title: "Concurrency in C", desc: "Write a multi-threaded server.", deadline: "2026-04-20", subjectId: subjectIds['CS301'], creator: userIds['rajesh.sharma@college.edu'] },
+      
+      // DBMS (3 assignments)
+      { title: "DBMS Normalization", desc: "Normalize the given schema up to 3NF.", deadline: "2026-02-20", subjectId: subjectIds['CS302'], creator: userIds['neha.patel@college.edu'] },
+      { title: "SQL Complex Queries", desc: "Write queries using JOINS, GROUP BY, and HAVING.", deadline: "2026-03-25", subjectId: subjectIds['CS302'], creator: userIds['neha.patel@college.edu'] },
+      { title: "Transaction Management", desc: "Explain ACID properties with examples.", deadline: "2026-04-15", subjectId: subjectIds['CS302'], creator: userIds['neha.patel@college.edu'] },
+      
+      // AWT (2 assignments)
+      { title: "AWT React App", desc: "Create a simple React app connecting to an API.", deadline: "2026-03-05", subjectId: subjectIds['CS303'], creator: userIds['vikram.singh@college.edu'] },
+      { title: "Node.js Authentication", desc: "Implement JWT based authentication in Express.", deadline: "2026-04-10", subjectId: subjectIds['CS303'], creator: userIds['vikram.singh@college.edu'] },
+    ];
+    const assignmentsList = [];
+    for (const a of assignmentsData) {
+      const res = await client.query(
+        'INSERT INTO assignments (subject_id, title, description, deadline, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [a.subjectId, a.title, a.desc, a.deadline, a.creator]
+      );
+      assignmentsList.push({ id: res.rows[0].id, title: a.title });
+    }
+    console.log('✅ Assignments seeded');
+
+    // 10. Submissions
+    for (const student of studentsList) {
+      const type = getStudentType(student.index);
+      for (const assign of assignmentsList) {
+        let status, grade;
+        if (type === "good") {
+          status = "submitted"; grade = rand(80, 100);
+        } else if (type === "average") {
+          status = Math.random() < 0.8 ? "submitted" : "late"; grade = rand(50, 80);
+        } else {
+          status = Math.random() < 0.5 ? "submitted" : "pending"; grade = rand(20, 60);
+        }
+        
+        if (status === 'pending') {
+          await client.query(
+            'INSERT INTO submissions (assignment_id, student_id, status) VALUES ($1, $2, $3)',
+            [assign.id, student.profileId, status]
+          );
+        } else {
+          await client.query(
+            'INSERT INTO submissions (assignment_id, student_id, file_url, original_filename, submitted_at, status, grade) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [assign.id, student.profileId, `/uploads/${student.profileId}_${assign.id}.pdf`, `assignment_${assign.id}.pdf`, new Date().toISOString(), status, grade]
+          );
+        }
+      }
+    }
+    console.log('✅ Submissions seeded');
+
+    // 11. Generate Risk Scores for Trends (6 weeks back from April 17)
+    for (const student of studentsList) {
+      const type = getStudentType(student.index);
+      for (let w = 0; w < 6; w++) {
+        const computedDate = new Date('2026-03-01');
+        computedDate.setDate(computedDate.getDate() + w * 7);
+        
+        let score;
+        if (type === "good") score = rand(75, 95);
+        else if (type === "average") score = rand(45, 70);
+        else score = rand(15, 35);
+        
+        const level = score >= 71 ? 'low' : score >= 41 ? 'medium' : 'high';
+        const reasons = [];
+        if (score < 70) reasons.push('Attendance below optimal');
+        if (score < 50) reasons.push('Low internal marks');
+        
+        await client.query(
+          'INSERT INTO risk_scores (student_id, score, level, reasons, computed_at) VALUES ($1, $2, $3, $4, $5)',
+          [student.profileId, score, level, reasons, computedDate.toISOString()]
+        );
+      }
+    }
+    console.log('✅ Risk trend data seeded');
+
+    // Keep existing metadata structure (Classrooms, Events, Hall Ticket Rules)
+    const classroomsData = [
+      { number: 'L-101', capacity: 60, type: 'lecture', building: 'Main Block' },
+      { number: 'L-102', capacity: 60, type: 'lecture', building: 'Main Block' },
+      { number: 'L-103', capacity: 60, type: 'lecture', building: 'Main Block' },
+      { number: 'LAB-1', capacity: 30, type: 'lab', building: 'Tech Block' },
+      { number: 'LAB-2', capacity: 30, type: 'lab', building: 'Tech Block' },
+      { number: 'C-201', capacity: 20, type: 'seminar', building: 'Admin Block' },
+    ];
+    for (const r of classroomsData) {
+      await client.query(
+        'INSERT INTO classrooms (number, capacity, type, building) VALUES ($1, $2, $3, $4) ON CONFLICT (number) DO NOTHING',
+        [r.number, r.capacity, r.type, r.building]
+      );
+    }
+    console.log('✅ Classrooms seeded');
+
+    // LMS Content
+    const lmsData = [
+      { subjectId: subjectIds['CS301'], title: 'Introduction to Process Scheduling', type: 'pdf', uploaded_by: userIds['rajesh.sharma@college.edu'] },
+      { subjectId: subjectIds['CS301'], title: 'Deadlock avoidance notes', type: 'docx', uploaded_by: userIds['rajesh.sharma@college.edu'] },
+      { subjectId: subjectIds['CS302'], title: 'SQL Queries basics', type: 'pdf', uploaded_by: userIds['neha.patel@college.edu'] },
+      { subjectId: subjectIds['CS302'], title: 'ER Diagram Tutorial', type: 'video', uploaded_by: userIds['neha.patel@college.edu'] },
+      { subjectId: subjectIds['CS303'], title: 'HTML & CSS Basics', type: 'ppt', uploaded_by: userIds['vikram.singh@college.edu'] },
+    ];
+    for (const l of lmsData) {
+      await client.query(
+        'INSERT INTO lms_content (subject_id, title, file_url, type, uploaded_by) VALUES ($1, $2, $3, $4, $5)',
+        [l.subjectId, l.title, `/uploads/lms/${l.title.replace(/\s+/g, '_').toLowerCase()}.${l.type === 'video' ? 'mp4' : l.type}`, l.type, l.uploaded_by]
+      );
+    }
+    console.log('✅ LMS Content seeded');
+
+    // Events
+    await client.query(
+      'INSERT INTO events (title, start_date, end_date, description, created_by) VALUES ($1, $2, $3, $4, $5)',
+      ['Annual Tech Fest 2026', '2026-05-15', '2026-05-17', 'Annual technology festival with hackathons.', userIds['admin@college.edu']]
+    );
+    await client.query(
+      'INSERT INTO events (title, start_date, end_date, description, created_by) VALUES ($1, $2, $3, $4, $5)',
+      ['Mid-Semester Exam Week', '2026-04-28', '2026-05-02', 'Mid-semester examinations.', userIds['admin@college.edu']]
+    );
+
     await client.query(
       'INSERT INTO hall_ticket_rules (min_attendance_percent, enabled) VALUES ($1, $2)',
       [75, true]
     );
-    console.log('✅ Hall ticket rules seeded');
 
-    // 13. Interventions
-    await client.query(
-      'INSERT INTO interventions (student_id, mentor_id, type, remarks) VALUES ($1, $2, $3, $4)',
-      [studentIds['liam@demo.com'], userIds['mentor@demo.com'], 'counseling', 'Student has been consistently missing classes. Scheduled a one-on-one counseling session to discuss academic challenges.']
-    );
-    await client.query(
-      'INSERT INTO interventions (student_id, mentor_id, type, remarks) VALUES ($1, $2, $3, $4)',
-      [studentIds['noah@demo.com'], userIds['mentor@demo.com'], 'remedial', 'Arranged remedial classes for Mathematics and Physics. Student needs extra support in these subjects.']
-    );
-    await client.query(
-      'INSERT INTO interventions (student_id, mentor_id, type, remarks) VALUES ($1, $2, $3, $4)',
-      [studentIds['student@demo.com'], userIds['mentor@demo.com'], 'counseling', 'Regular check-in. Student attendance is declining - discussed time management strategies.']
-    );
-    console.log('✅ Interventions seeded');
-
-    // 14. Notifications
-    const notifData = [
-      { userId: userIds['student@demo.com'], message: 'Your risk level has changed to Medium. Check your risk analysis for details.' },
-      { userId: userIds['student@demo.com'], message: 'New assignment posted: Data Structures Assignment 1. Deadline: April 25.' },
-      { userId: userIds['student@demo.com'], message: 'Mid-Semester exams start on April 28. Download your hall ticket.' },
-      { userId: userIds['mentor@demo.com'], message: 'Student Liam Chen has been flagged as High Risk.' },
-      { userId: userIds['mentor@demo.com'], message: 'New intervention assigned for Noah Garcia.' },
-      { userId: userIds['teacher@demo.com'], message: '3 new assignment submissions received for CS201.' },
-    ];
-    for (const n of notifData) {
+    // Interventions
+    const riskyStudents = studentsList.filter(s => getStudentType(s.index) === 'risky');
+    if (riskyStudents.length > 0) {
       await client.query(
-        'INSERT INTO notifications (user_id, message) VALUES ($1, $2)',
-        [n.userId, n.message]
+        'INSERT INTO interventions (student_id, mentor_id, type, remarks) VALUES ($1, $2, $3, $4)',
+        [riskyStudents[0].profileId, userIds['anjali.mehta@college.edu'], 'counseling', 'Student has been consistently missing classes. Scheduled counseling.']
       );
     }
-    console.log('✅ Notifications seeded');
+    
+    // Notifications
+    await client.query(
+      'INSERT INTO notifications (user_id, message) VALUES ($1, $2)',
+      [userIds['anjali.mehta@college.edu'], `Multiple students flagged as High Risk in recent analysis.`]
+    );
 
     await client.query('COMMIT');
     console.log('\n🎉 All seed data inserted successfully!');
-    console.log('\n📋 Demo Credentials:');
-    console.log('   student@demo.com  / Demo@1234');
-    console.log('   mentor@demo.com   / Demo@1234');
-    console.log('   teacher@demo.com  / Demo@1234');
-    console.log('   admin@demo.com    / Demo@1234');
+    console.log('\n📋 Demo Credentials (Password: Demo@123):');
+    console.log('   Mentor:  anjali.mehta@college.edu');
+    console.log('   OS:      rajesh.sharma@college.edu');
+    console.log('   DBMS:    neha.patel@college.edu');
+    console.log('   AWT:     vikram.singh@college.edu');
+    console.log('   Student: aarav.shah@college.edu (or any name)');
     process.exit(0);
   } catch (err) {
     await client.query('ROLLBACK');

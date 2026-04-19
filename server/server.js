@@ -10,8 +10,9 @@ const { startScheduler } = require('./services/scheduler');
 
 const app = express();
 const server = http.createServer(app);
+const pdfRoutes = require("./routes/pdfRoutes");
 
-// Socket.io setup
+
 const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
@@ -19,10 +20,7 @@ const io = new Server(server, {
   },
 });
 
-// Make io accessible in routes
 app.set('io', io);
-
-// Middleware
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
   credentials: true,
@@ -30,9 +28,19 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+app.use("/api", pdfRoutes);
+
+// Ensure upload directories exist
+const fs = require('fs');
+['uploads/assignments', 'uploads/lms', 'uploads/csv'].forEach(dir => {
+  fs.mkdirSync(path.join(__dirname, dir), { recursive: true });
+});
+
+// Static uploads — accessible directly by frontend
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Routes
+// API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/students', require('./routes/students'));
 app.use('/api/attendance', require('./routes/attendance'));
@@ -46,6 +54,7 @@ app.use('/api/hallticket', require('./routes/hallticket'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/faculty', require('./routes/faculty'));
+app.use('/api/classrooms', require('./routes/classrooms'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -58,10 +67,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Initialize Socket.io
 initSocket(io);
-
-// Start scheduler
 startScheduler(io);
 
 const PORT = process.env.PORT || 5000;

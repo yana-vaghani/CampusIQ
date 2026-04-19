@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getStudentRisk, getStudentAttendance, getStudentAssignments, getTimetable } from '../../api/axios';
+import { getStudentRisk, getStudentAttendance, getStudentAssignments, getTimetable, getStudentMe } from '../../api/axios';
 import StatCard from '../../components/shared/StatCard';
 import RiskBadge from '../../components/shared/RiskBadge';
 import LoadingSkeleton from '../../components/shared/LoadingSkeleton';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CalendarCheck, GraduationCap, Clock, FileText, BookOpen, Ticket, Lightbulb, ChevronRight } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -15,28 +15,53 @@ export default function StudentDashboard() {
   const [assignments, setAssignments] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [studentProfile, setStudentProfile] = useState(null);
 
   useEffect(() => {
-    loadData();
+    if (user) loadData();
   }, [user]);
 
   const loadData = async () => {
+    setLoading(true);
     try {
-      const [riskRes, attRes, assignRes, ttRes] = await Promise.all([
-        getStudentRisk(user.studentId),
-        getStudentAttendance(user.studentId),
-        getStudentAssignments(user.studentId),
-        getTimetable(user.section || 'A'),
+      // First get the student profile to ensure we have studentId and section
+      let sid = user.studentId;
+      let section = user.section || 'A';
+
+      if (!sid) {
+        try {
+          const profile = await getStudentMe();
+          setStudentProfile(profile.data);
+          sid = profile.data.id;
+          section = profile.data.section || 'A';
+        } catch {
+          console.error('Could not fetch student profile');
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Load each independently so one failure doesn't break everything
+      const results = await Promise.allSettled([
+        getStudentRisk(sid),
+        getStudentAttendance(sid),
+        getStudentAssignments(sid),
+        getTimetable(section),
       ]);
-      setRisk(riskRes.data);
-      setAttendance(attRes.data);
-      setAssignments(assignRes.data);
-      
-      const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-      const today = days[new Date().getDay()];
-      setTimetable(ttRes.data.filter(t => t.day === today));
+
+      if (results[0].status === 'fulfilled') setRisk(results[0].value.data);
+      if (results[1].status === 'fulfilled') setAttendance(results[1].value.data);
+      if (results[2].status === 'fulfilled') {
+        const assignData = results[2].value.data;
+        setAssignments(assignData.all || assignData || []);
+      }
+      if (results[3].status === 'fulfilled') {
+        const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        const today = days[new Date().getDay()];
+        setTimetable((results[3].value.data || []).filter(t => t.day === today));
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Dashboard load error:', err);
     } finally {
       setLoading(false);
     }
@@ -50,7 +75,9 @@ export default function StudentDashboard() {
     </div>
   );
 
-  const upcomingAssignments = assignments.filter(a => a.submission_status === 'pending' || !a.submission_status);
+  const upcomingAssignments = Array.isArray(assignments)
+    ? assignments.filter(a => a.submission_status === 'pending' || !a.submission_status)
+    : [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -66,23 +93,24 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Risk Score"
-          value={risk?.score || 0}
+          value={risk?.score ?? 0}
           icon={AlertTriangle}
-          color={risk?.level === 'high' ? '#A4161A' : risk?.level === 'medium' ? '#FFC300' : '#354F52'}
+          color={risk?.level === 'high' ? '#A4161A' : risk?.level === 'medium' ? '#FFC300' : '#15803d'}
           suffix="/100"
         />
         <StatCard
           title="Attendance"
-          value={attendance?.summary?.percent || 0}
+          value={attendance?.summary?.percent ?? 0}
           icon={CalendarCheck}
           color="#415A77"
           suffix="%"
         />
         <StatCard
-          title="Avg GPA"
-          value={risk?.breakdown?.averageMarks ? (risk.breakdown.averageMarks / 10).toFixed(1) : '0.0'}
+          title="Avg Marks"
+          value={risk?.breakdown?.averageMarks ? parseFloat(risk.breakdown.averageMarks).toFixed(1) : '0.0'}
           icon={GraduationCap}
           color="#354F52"
+          suffix="%"
         />
         <StatCard
           title="Classes Today"
@@ -123,7 +151,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* Subject Performance Chart */}
-          {risk?.subjectBreakdown && (
+          {risk?.subjectBreakdown?.length > 0 && (
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
               <h3 className="font-semibold text-[#1B263B] font-[DM_Sans] mb-4">Subject Performance</h3>
               <ResponsiveContainer width="100%" height={250}>

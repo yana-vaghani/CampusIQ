@@ -28,6 +28,7 @@ const navItems = {
   ],
   teacher: [
     { path: '/teacher/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/teacher/attendance', label: 'Attendance', icon: CalendarCheck },
     { path: '/teacher/lms', label: 'LMS Content', icon: Upload },
     { path: '/teacher/assignments', label: 'Assignments', icon: FileText },
     { path: '/teacher/marks', label: 'Marks Entry', icon: BarChart3 },

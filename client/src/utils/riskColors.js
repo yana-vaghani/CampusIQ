@@ -2,7 +2,7 @@ export const getRiskColor = (level) => {
   switch (level) {
     case 'high': return '#A4161A';
     case 'medium': return '#FFC300';
-    case 'low': return '#354F52';
+    case 'low': return '#15803d'; // Green-700
     default: return '#6b7280';
   }
 };
